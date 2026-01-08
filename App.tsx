@@ -22,6 +22,7 @@ const App: React.FC = () => {
 
   const alarmAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Persistence
   useEffect(() => {
     localStorage.setItem('zenflow_notes', JSON.stringify(notes));
   }, [notes]);
@@ -30,10 +31,12 @@ const App: React.FC = () => {
     localStorage.setItem('zenflow_todos', JSON.stringify(todos));
   }, [todos]);
 
+  // Permissions
   useEffect(() => {
     requestNotificationPermission();
   }, []);
 
+  // Alarm & Reminder Engine
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
@@ -46,7 +49,7 @@ const App: React.FC = () => {
               if (todo.alarmEnabled) {
                 setActiveAlarm(todo);
               }
-              sendNotification("NOTES Task Due", todo.text);
+              sendNotification("⏰ Productivity Alarm", `Time to focus on: ${todo.text}`);
               changed = true;
               return { ...todo, reminderSent: true };
             }
@@ -55,10 +58,11 @@ const App: React.FC = () => {
         });
         return changed ? next : prev;
       });
-    }, 10000);
+    }, 5000); // Check every 5 seconds for precision
     return () => clearInterval(interval);
   }, []);
 
+  // Audio Control
   useEffect(() => {
     if (activeAlarm) {
       if (!alarmAudioRef.current) {
@@ -120,25 +124,37 @@ const App: React.FC = () => {
     setActiveAlarm(null);
   };
 
+  const snoozeAlarm = (todo: Todo) => {
+    const snoozeTime = new Date();
+    snoozeTime.setMinutes(snoozeTime.getMinutes() + 5);
+    
+    setTodos(prev => prev.map(t => 
+      t.id === todo.id ? { ...t, dueDate: snoozeTime.toISOString(), reminderSent: false } : t
+    ));
+    setActiveAlarm(null);
+  };
+
   return (
-    <div className="flex h-screen bg-white overflow-hidden relative selection-blue">
-      <Sidebar activeView={activeView} setActiveView={setActiveView} />
+    <div className="flex h-screen bg-white overflow-hidden relative selection-blue font-sans">
+      <Sidebar 
+        activeView={activeView} 
+        setActiveView={setActiveView} 
+        upcomingTodos={todos.filter(t => !t.completed && t.dueDate).slice(0, 3)} 
+      />
       
       <main className="flex-1 flex flex-col min-w-0 bg-[#F8FAFC]">
-        <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-8 z-10">
+        <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-8 z-10 shrink-0">
           <div className="flex items-center space-x-3">
-            <button className="md:hidden text-[#0F172A] mr-2">
-              <i className="fa-solid fa-bars"></i>
-            </button>
-            <h1 className="text-lg font-semibold text-[#0F172A] tracking-tight">
-              {activeView === 'notes' ? 'Notes' : activeView === 'todos' ? 'Todo List' : 'AI Performance'}
+            <h1 className="text-lg font-extrabold text-[#0F172A] tracking-tight">
+              {activeView === 'notes' ? 'My Library' : activeView === 'todos' ? 'Action Board' : 'Intelligence Audit'}
             </h1>
           </div>
-          <div className="flex items-center space-x-4">
-             <div className="hidden sm:block text-[11px] font-medium text-[#64748B] uppercase tracking-wider">
-               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+          <div className="flex items-center space-x-5">
+             <div className="hidden sm:flex flex-col items-end">
+               <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest leading-none">Status</span>
+               <span className="text-[11px] font-semibold text-[#0F172A]">Production Active</span>
              </div>
-             <div className="w-9 h-9 rounded-lg border border-slate-200 flex items-center justify-center bg-white p-1.5 shadow-sm">
+             <div className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center bg-white p-2 shadow-sm">
                <img 
                  src="https://cdn-icons-png.flaticon.com/512/3209/3209265.png" 
                  alt="Brand Logo" 
@@ -148,7 +164,7 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
           {activeView === 'notes' && (
             <NotesView notes={notes} onAddNote={addNote} onDeleteNote={deleteNote} />
           )}
@@ -168,7 +184,7 @@ const App: React.FC = () => {
       </main>
 
       {activeAlarm && (
-        <RingingAlarm todo={activeAlarm} onDismiss={dismissAlarm} />
+        <RingingAlarm todo={activeAlarm} onDismiss={dismissAlarm} onSnooze={() => snoozeAlarm(activeAlarm)} />
       )}
     </div>
   );
