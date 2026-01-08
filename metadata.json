@@ -1,7 +1,5 @@
 {
   "name": "ZenFlow Productivity",
   "description": "A high-performance note-taking and todo tracking application with AI-powered productivity coaching, smart reminders, and active alarms.",
-  "requestFramePermissions": [
-    "microphone"
-  ]
+  "requestFramePermissions": []
 }

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Todo, Note, QualityScore } from './types';
 import Sidebar from './components/Sidebar';
@@ -24,7 +23,6 @@ const App: React.FC = () => {
 
   const alarmAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Auto-Persistence
   useEffect(() => {
     localStorage.setItem('zenflow_notes', JSON.stringify(notes));
   }, [notes]);
@@ -33,12 +31,10 @@ const App: React.FC = () => {
     localStorage.setItem('zenflow_todos', JSON.stringify(todos));
   }, [todos]);
 
-  // Request Permissions on mount
   useEffect(() => {
     requestNotificationPermission();
   }, []);
 
-  // Precision Reminder & Alarm Engine
   useEffect(() => {
     const checkSchedule = () => {
       const now = new Date();
@@ -51,7 +47,7 @@ const App: React.FC = () => {
               if (todo.alarmEnabled) {
                 setActiveAlarm(todo);
               }
-              sendNotification("⏰ ZenFlow Reminder", `Target identified: ${todo.text}`);
+              sendNotification("⏰ ZenFlow Reminder", `Active Objective: ${todo.text}`);
               changed = true;
               return { ...todo, reminderSent: true };
             }
@@ -66,15 +62,13 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Audio Control Logic
   useEffect(() => {
     if (activeAlarm) {
       if (!alarmAudioRef.current) {
-        // High priority alarm tone
         alarmAudioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/995/995-preview.mp3');
         alarmAudioRef.current.loop = true;
       }
-      alarmAudioRef.current.play().catch(() => console.warn("Interacted required for audio"));
+      alarmAudioRef.current.play().catch(e => console.warn("Interaction required for audio", e));
     } else if (alarmAudioRef.current) {
       alarmAudioRef.current.pause();
       alarmAudioRef.current.currentTime = 0;
@@ -104,7 +98,13 @@ const App: React.FC = () => {
   };
 
   const toggleTodo = (id: string) => {
-    setTodos(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+    setTodos(prev => prev.map(t => {
+      if (t.id === id) {
+        if (activeAlarm?.id === id) setActiveAlarm(null);
+        return { ...t, completed: !t.completed };
+      }
+      return t;
+    }));
   };
 
   const updateTodoQuality = (id: string, quality: QualityScore) => {
@@ -125,31 +125,39 @@ const App: React.FC = () => {
       <Sidebar 
         activeView={activeView} 
         setActiveView={setActiveView} 
-        upcomingTodos={todos.filter(t => !t.completed && t.dueDate).slice(0, 3)} 
+        upcomingTodos={todos.filter(t => !t.completed && t.dueDate).slice(0, 5)} 
       />
       
-      <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 border-b border-slate-200 bg-white/80 backdrop-blur-md flex items-center justify-between px-8 z-20 shrink-0 sticky top-0">
-          <h1 className="text-sm font-black text-[#0F172A] tracking-widest uppercase">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <header className="h-16 border-b border-slate-200 bg-white/90 backdrop-blur-xl flex items-center justify-between px-8 z-30 shrink-0 sticky top-0">
+          <h1 className="text-[10px] font-black text-[#0F172A] tracking-[0.2em] uppercase flex items-center">
+            <span className="w-2 h-2 rounded-full bg-blue-500 mr-3"></span>
             {activeView} Center
           </h1>
-          <div className="flex items-center space-x-4">
-             <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
-             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Engine</span>
+          <div className="flex items-center space-x-6">
+             <div className="flex items-center space-x-2">
+               <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></div>
+               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">System Ready</span>
+             </div>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
-          {activeView === 'notes' && <NotesView notes={notes} onAddNote={addNote} onDeleteNote={deleteNote} />}
-          {activeView === 'todos' && <TodosView todos={todos} onAddTodo={addTodo} onToggleTodo={toggleTodo} onUpdateQuality={updateTodoQuality} onDeleteTodo={(id) => setTodos(prev => prev.filter(t => t.id !== id))} />}
-          {activeView === 'insights' && <AIInsights notes={notes} todos={todos} />}
+        <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/50">
+          <div className="animate-slide-up">
+            {activeView === 'notes' && <NotesView notes={notes} onAddNote={addNote} onDeleteNote={deleteNote} />}
+            {activeView === 'todos' && <TodosView todos={todos} onAddTodo={addTodo} onToggleTodo={toggleTodo} onUpdateQuality={updateTodoQuality} onDeleteTodo={(id) => setTodos(prev => prev.filter(t => t.id !== id))} />}
+            {activeView === 'insights' && <AIInsights notes={notes} todos={todos} />}
+          </div>
         </div>
       </main>
 
       {activeAlarm && (
         <RingingAlarm 
           todo={activeAlarm} 
-          onDismiss={() => setActiveAlarm(null)} 
+          onDismiss={() => {
+            toggleTodo(activeAlarm.id);
+            setActiveAlarm(null);
+          }} 
           onSnooze={() => snoozeAlarm(activeAlarm)} 
         />
       )}

@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ZenFlow - Master Your Productivity</title>
+  <title>ZenFlow - Productivity OS</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -12,9 +11,10 @@
     body {
       font-family: 'Inter', sans-serif;
       color: #0F172A;
+      -webkit-font-smoothing: antialiased;
     }
     .custom-scrollbar::-webkit-scrollbar {
-      width: 5px;
+      width: 6px;
     }
     .custom-scrollbar::-webkit-scrollbar-track {
       background: transparent;
@@ -30,6 +30,13 @@
       background-color: #3B82F6;
       color: white;
     }
+    @keyframes slide-up {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .animate-slide-up {
+      animation: slide-up 0.4s ease-out forwards;
+    }
   </style>
 <script type="importmap">
 {
@@ -43,7 +50,7 @@
 }
 </script>
 </head>
-<body class="bg-[#F8FAFC] text-[#0F172A]">
+<body class="bg-[#F8FAFC] text-[#0F172A] selection-blue">
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
