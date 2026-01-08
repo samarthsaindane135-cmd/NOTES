@@ -11,10 +11,12 @@ import { requestNotificationPermission, sendNotification } from './services/noti
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<'notes' | 'todos' | 'insights'>('notes');
   const [activeAlarm, setActiveAlarm] = useState<Todo | null>(null);
+  
   const [notes, setNotes] = useState<Note[]>(() => {
     const saved = localStorage.getItem('zenflow_notes');
     return saved ? JSON.parse(saved) : [];
   });
+  
   const [todos, setTodos] = useState<Todo[]>(() => {
     const saved = localStorage.getItem('zenflow_todos');
     return saved ? JSON.parse(saved) : [];
@@ -22,7 +24,7 @@ const App: React.FC = () => {
 
   const alarmAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Persistence
+  // Auto-Persistence
   useEffect(() => {
     localStorage.setItem('zenflow_notes', JSON.stringify(notes));
   }, [notes]);
@@ -31,14 +33,14 @@ const App: React.FC = () => {
     localStorage.setItem('zenflow_todos', JSON.stringify(todos));
   }, [todos]);
 
-  // Permissions
+  // Request Permissions on mount
   useEffect(() => {
     requestNotificationPermission();
   }, []);
 
-  // Alarm & Reminder Engine
+  // Precision Reminder & Alarm Engine
   useEffect(() => {
-    const interval = setInterval(() => {
+    const checkSchedule = () => {
       const now = new Date();
       setTodos(prev => {
         let changed = false;
@@ -49,7 +51,7 @@ const App: React.FC = () => {
               if (todo.alarmEnabled) {
                 setActiveAlarm(todo);
               }
-              sendNotification("⏰ Productivity Alarm", `Time to focus on: ${todo.text}`);
+              sendNotification("⏰ ZenFlow Reminder", `Target identified: ${todo.text}`);
               changed = true;
               return { ...todo, reminderSent: true };
             }
@@ -58,32 +60,29 @@ const App: React.FC = () => {
         });
         return changed ? next : prev;
       });
-    }, 5000); // Check every 5 seconds for precision
+    };
+
+    const interval = setInterval(checkSchedule, 2000);
     return () => clearInterval(interval);
   }, []);
 
-  // Audio Control
+  // Audio Control Logic
   useEffect(() => {
     if (activeAlarm) {
       if (!alarmAudioRef.current) {
+        // High priority alarm tone
         alarmAudioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/995/995-preview.mp3');
         alarmAudioRef.current.loop = true;
       }
-      alarmAudioRef.current.play().catch(e => console.log("Audio play blocked", e));
-    } else {
-      if (alarmAudioRef.current) {
-        alarmAudioRef.current.pause();
-        alarmAudioRef.current.currentTime = 0;
-      }
+      alarmAudioRef.current.play().catch(() => console.warn("Interacted required for audio"));
+    } else if (alarmAudioRef.current) {
+      alarmAudioRef.current.pause();
+      alarmAudioRef.current.currentTime = 0;
     }
   }, [activeAlarm]);
 
   const addNote = (note: Omit<Note, 'id' | 'createdAt'>) => {
-    const newNote: Note = {
-      ...note,
-      id: crypto.randomUUID(),
-      createdAt: Date.now()
-    };
+    const newNote: Note = { ...note, id: crypto.randomUUID(), createdAt: Date.now() };
     setNotes(prev => [newNote, ...prev]);
   };
 
@@ -105,29 +104,16 @@ const App: React.FC = () => {
   };
 
   const toggleTodo = (id: string) => {
-    setTodos(prev => prev.map(t => 
-      t.id === id ? { ...t, completed: !t.completed } : t
-    ));
+    setTodos(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
   };
 
   const updateTodoQuality = (id: string, quality: QualityScore) => {
-    setTodos(prev => prev.map(t => 
-      t.id === id ? { ...t, quality } : t
-    ));
-  };
-
-  const deleteTodo = (id: string) => {
-    setTodos(prev => prev.filter(t => t.id !== id));
-  };
-
-  const dismissAlarm = () => {
-    setActiveAlarm(null);
+    setTodos(prev => prev.map(t => t.id === id ? { ...t, quality } : t));
   };
 
   const snoozeAlarm = (todo: Todo) => {
     const snoozeTime = new Date();
     snoozeTime.setMinutes(snoozeTime.getMinutes() + 5);
-    
     setTodos(prev => prev.map(t => 
       t.id === todo.id ? { ...t, dueDate: snoozeTime.toISOString(), reminderSent: false } : t
     ));
@@ -135,56 +121,37 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden relative selection-blue font-sans">
+    <div className="flex h-screen bg-[#F8FAFC] overflow-hidden selection-blue font-sans">
       <Sidebar 
         activeView={activeView} 
         setActiveView={setActiveView} 
         upcomingTodos={todos.filter(t => !t.completed && t.dueDate).slice(0, 3)} 
       />
       
-      <main className="flex-1 flex flex-col min-w-0 bg-[#F8FAFC]">
-        <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-8 z-10 shrink-0">
-          <div className="flex items-center space-x-3">
-            <h1 className="text-lg font-extrabold text-[#0F172A] tracking-tight">
-              {activeView === 'notes' ? 'My Library' : activeView === 'todos' ? 'Action Board' : 'Intelligence Audit'}
-            </h1>
-          </div>
-          <div className="flex items-center space-x-5">
-             <div className="hidden sm:flex flex-col items-end">
-               <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-widest leading-none">Status</span>
-               <span className="text-[11px] font-semibold text-[#0F172A]">Production Active</span>
-             </div>
-             <div className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center bg-white p-2 shadow-sm">
-               <img 
-                 src="https://cdn-icons-png.flaticon.com/512/3209/3209265.png" 
-                 alt="Brand Logo" 
-                 className="w-full h-full object-contain" 
-               />
-             </div>
+      <main className="flex-1 flex flex-col min-w-0">
+        <header className="h-16 border-b border-slate-200 bg-white/80 backdrop-blur-md flex items-center justify-between px-8 z-20 shrink-0 sticky top-0">
+          <h1 className="text-sm font-black text-[#0F172A] tracking-widest uppercase">
+            {activeView} Center
+          </h1>
+          <div className="flex items-center space-x-4">
+             <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Engine</span>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          {activeView === 'notes' && (
-            <NotesView notes={notes} onAddNote={addNote} onDeleteNote={deleteNote} />
-          )}
-          {activeView === 'todos' && (
-            <TodosView 
-              todos={todos} 
-              onAddTodo={addTodo} 
-              onToggleTodo={toggleTodo} 
-              onUpdateQuality={updateTodoQuality}
-              onDeleteTodo={deleteTodo}
-            />
-          )}
-          {activeView === 'insights' && (
-            <AIInsights notes={notes} todos={todos} />
-          )}
+          {activeView === 'notes' && <NotesView notes={notes} onAddNote={addNote} onDeleteNote={deleteNote} />}
+          {activeView === 'todos' && <TodosView todos={todos} onAddTodo={addTodo} onToggleTodo={toggleTodo} onUpdateQuality={updateTodoQuality} onDeleteTodo={(id) => setTodos(prev => prev.filter(t => t.id !== id))} />}
+          {activeView === 'insights' && <AIInsights notes={notes} todos={todos} />}
         </div>
       </main>
 
       {activeAlarm && (
-        <RingingAlarm todo={activeAlarm} onDismiss={dismissAlarm} onSnooze={() => snoozeAlarm(activeAlarm)} />
+        <RingingAlarm 
+          todo={activeAlarm} 
+          onDismiss={() => setActiveAlarm(null)} 
+          onSnooze={() => snoozeAlarm(activeAlarm)} 
+        />
       )}
     </div>
   );
