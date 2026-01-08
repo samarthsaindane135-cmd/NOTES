@@ -2,7 +2,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Note, Todo } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to initialize GoogleGenAI client right before use
+const getAIClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const getAIProductivityInsights = async (notes: Note[], todos: Todo[]) => {
   const notesContext = notes.map(n => `Note: ${n.title} - ${n.content}`).join('\n');
@@ -27,9 +28,13 @@ export const getAIProductivityInsights = async (notes: Note[], todos: Todo[]) =>
     Be direct, professional, and data-driven.
   `;
 
+  // Create a new client instance right before making the API call
+  const ai = getAIClient();
+
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      // Analysis and Pattern Recognition are complex reasoning tasks; using gemini-3-pro-preview
+      model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -45,18 +50,22 @@ export const getAIProductivityInsights = async (notes: Note[], todos: Todo[]) =>
                   description: { type: Type.STRING },
                   category: { type: Type.STRING, description: "One word: focus, momentum, or quality" }
                 },
-                required: ["title", "description", "category"]
+                required: ["title", "description", "category"],
+                propertyOrdering: ["title", "description", "category"]
               }
             },
             overallScore: { type: Type.NUMBER, description: "Productivity fidelity score out of 100" },
             verdict: { type: Type.STRING, description: "A short 10-word summary of current performance" }
           },
-          required: ["insights", "overallScore", "verdict"]
+          required: ["insights", "overallScore", "verdict"],
+          propertyOrdering: ["insights", "overallScore", "verdict"]
         }
       }
     });
 
-    return JSON.parse(response.text);
+    // response.text is a property, not a method
+    const text = response.text || "{}";
+    return JSON.parse(text);
   } catch (error) {
     console.error("Gemini Insight Error:", error);
     return null;
@@ -65,6 +74,9 @@ export const getAIProductivityInsights = async (notes: Note[], todos: Todo[]) =>
 
 export const summarizeNote = async (content: string): Promise<string | null> => {
   if (!content || content.trim().length < 20) return null;
+
+  // Create client right before the call
+  const ai = getAIClient();
 
   const prompt = `
     Summarize the following note content into a structured list of 3-6 concise bullet points.
@@ -81,10 +93,12 @@ export const summarizeNote = async (content: string): Promise<string | null> => 
 
   try {
     const response = await ai.models.generateContent({
+      // Summarization is a basic text task; using gemini-3-flash-preview
       model: 'gemini-3-flash-preview',
       contents: prompt,
     });
 
+    // Directly access the .text property
     return response.text || null;
   } catch (error) {
     console.error("Summarization error:", error);
