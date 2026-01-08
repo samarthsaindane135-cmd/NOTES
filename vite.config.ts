@@ -1,23 +1,21 @@
 
 import { defineConfig, loadEnv } from 'vite';
-import process from 'node:process';
 
 export default defineConfig(({ mode }) => {
-  // Load env file based on `mode` in the current working directory.
-  // The empty string as third argument loads all envs regardless of VITE_ prefix.
-  const env = loadEnv(mode, process.cwd(), '');
+  // loadEnv searches for environment variables in the project root
+  // Fix: Use '.' instead of process.cwd() to avoid the "Property 'cwd' does not exist on type 'Process'" TypeScript error
+  const env = loadEnv(mode, '.', '');
   
   return {
     define: {
-      'process.env.API_KEY': JSON.stringify(env.API_KEY)
+      // Ensure the key is always a string literal in the final bundle
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || '')
     },
     build: {
       outDir: 'dist',
-      sourcemap: false,
-      // Reverted to default minifier (esbuild) to avoid extra dependency requirements
-    },
-    server: {
-      port: 3000
+      // Explicitly use esbuild (default) which is already included in Vite
+      minify: 'esbuild',
+      sourcemap: false
     }
   };
 });
