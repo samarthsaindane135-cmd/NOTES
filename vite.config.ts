@@ -1,3 +1,4 @@
+
 import { defineConfig, loadEnv } from 'vite';
 import process from 'node:process';
 
@@ -11,15 +12,8 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       minify: 'esbuild',
-      sourcemap: false,
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom'],
-            genai: ['@google/genai']
-          }
-        }
-      }
+      cssMinify: true,
+      sourcemap: false
     },
     server: {
       port: 3000

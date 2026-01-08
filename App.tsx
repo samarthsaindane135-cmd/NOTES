@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Todo, Note, QualityScore } from './types';
 import Sidebar from './components/Sidebar';
@@ -12,13 +13,21 @@ const App: React.FC = () => {
   const [activeAlarm, setActiveAlarm] = useState<Todo | null>(null);
   
   const [notes, setNotes] = useState<Note[]>(() => {
-    const saved = localStorage.getItem('zenflow_notes');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('zenflow_notes');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
   });
   
   const [todos, setTodos] = useState<Todo[]>(() => {
-    const saved = localStorage.getItem('zenflow_todos');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('zenflow_todos');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
   });
 
   const alarmAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -35,6 +44,7 @@ const App: React.FC = () => {
     requestNotificationPermission();
   }, []);
 
+  // Alarm & Reminder Engine
   useEffect(() => {
     const checkSchedule = () => {
       const now = new Date();
@@ -44,10 +54,10 @@ const App: React.FC = () => {
           if (todo.dueDate && !todo.reminderSent && !todo.completed) {
             const due = new Date(todo.dueDate);
             if (due <= now) {
-              if (todo.alarmEnabled) {
+              if (todo.alarmEnabled && !activeAlarm) {
                 setActiveAlarm(todo);
               }
-              sendNotification("⏰ ZenFlow Reminder", `Active Objective: ${todo.text}`);
+              sendNotification("⏰ ZenFlow Alert", `Time for: ${todo.text}`);
               changed = true;
               return { ...todo, reminderSent: true };
             }
@@ -58,10 +68,11 @@ const App: React.FC = () => {
       });
     };
 
-    const interval = setInterval(checkSchedule, 2000);
+    const interval = setInterval(checkSchedule, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [activeAlarm]);
 
+  // Handle Alarm Audio
   useEffect(() => {
     if (activeAlarm) {
       if (!alarmAudioRef.current) {
@@ -131,19 +142,20 @@ const App: React.FC = () => {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-16 border-b border-slate-200 bg-white/90 backdrop-blur-xl flex items-center justify-between px-8 z-30 shrink-0 sticky top-0">
           <h1 className="text-[10px] font-black text-[#0F172A] tracking-[0.2em] uppercase flex items-center">
-            <span className="w-2 h-2 rounded-full bg-blue-500 mr-3"></span>
+            <span className="w-2 h-2 rounded-full bg-blue-500 mr-3 animate-pulse"></span>
             {activeView} Center
           </h1>
           <div className="flex items-center space-x-6">
              <div className="flex items-center space-x-2">
-               <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></div>
-               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">System Ready</span>
+               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                 {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+               </span>
              </div>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/50">
-          <div className="animate-slide-up">
+          <div className="animate-slide-up p-1 min-h-full">
             {activeView === 'notes' && <NotesView notes={notes} onAddNote={addNote} onDeleteNote={deleteNote} />}
             {activeView === 'todos' && <TodosView todos={todos} onAddTodo={addTodo} onToggleTodo={toggleTodo} onUpdateQuality={updateTodoQuality} onDeleteTodo={(id) => setTodos(prev => prev.filter(t => t.id !== id))} />}
             {activeView === 'insights' && <AIInsights notes={notes} todos={todos} />}
