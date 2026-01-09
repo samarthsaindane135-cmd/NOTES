@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Todo, Note, QualityScore } from './types';
 import Sidebar from './components/Sidebar';
+import MobileNav from './components/MobileNav';
 import NotesView from './components/NotesView';
 import TodosView from './components/TodosView';
 import AIInsights from './components/AIInsights';
@@ -131,6 +131,15 @@ const App: React.FC = () => {
     setActiveAlarm(null);
   };
 
+  const getViewTitle = () => {
+    switch(activeView) {
+      case 'notes': return 'Notes';
+      case 'todos': return 'Task';
+      case 'insights': return 'AI Coach';
+      default: return 'ZenFlow';
+    }
+  };
+
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden selection-blue font-sans">
       <Sidebar 
@@ -139,15 +148,15 @@ const App: React.FC = () => {
         upcomingTodos={todos.filter(t => !t.completed && t.dueDate).slice(0, 5)} 
       />
       
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 border-b border-slate-200 bg-white/90 backdrop-blur-xl flex items-center justify-between px-8 z-30 shrink-0 sticky top-0">
-          <h1 className="text-[10px] font-black text-[#0F172A] tracking-[0.2em] uppercase flex items-center">
-            <span className="w-2 h-2 rounded-full bg-blue-500 mr-3 animate-pulse"></span>
-            {activeView} Center
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        <header className="h-16 border-b border-slate-200 bg-white/90 backdrop-blur-xl flex items-center justify-between px-4 md:px-8 z-30 shrink-0 sticky top-0">
+          <h1 className="text-[10px] md:text-[11px] font-black text-[#0F172A] tracking-[0.25em] uppercase flex items-center">
+            <span className="w-2 h-2 rounded-full bg-blue-500 mr-2 md:mr-3 animate-pulse"></span>
+            <span className="truncate">{getViewTitle()} Center</span>
           </h1>
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-4 md:space-x-6">
              <div className="flex items-center space-x-2">
-               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+               <span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">
                  {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                </span>
              </div>
@@ -155,12 +164,14 @@ const App: React.FC = () => {
         </header>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/50">
-          <div className="animate-slide-up p-1 min-h-full">
+          <div className="animate-slide-up p-1 min-h-full pb-24 md:pb-8">
             {activeView === 'notes' && <NotesView notes={notes} onAddNote={addNote} onDeleteNote={deleteNote} />}
             {activeView === 'todos' && <TodosView todos={todos} onAddTodo={addTodo} onToggleTodo={toggleTodo} onUpdateQuality={updateTodoQuality} onDeleteTodo={(id) => setTodos(prev => prev.filter(t => t.id !== id))} />}
             {activeView === 'insights' && <AIInsights notes={notes} todos={todos} />}
           </div>
         </div>
+
+        <MobileNav activeView={activeView} setActiveView={setActiveView} />
       </main>
 
       {activeAlarm && (
